@@ -1,0 +1,108 @@
+#!/usr/bin/env node
+
+/**
+ * Module dependencies.
+ */
+
+import app from "../app.js";
+import debug from "debug";
+import { createServer } from "http";
+import { createServer as _createServer } from "https";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { HttpError } from "http-errors";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
+import logging from "../library/Logging.js";
+debug("firstTask:server");
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+/**
+ * Get port from environment and store in Express.
+ */
+
+var port = normalizePort(process.env.PORT || "3000");
+app.set("port", port);
+app.set("secPort", (+port + 443).toString());
+
+/**
+ * Create HTTP server.
+ */
+
+var server = createServer(app);
+
+/**
+ * Listen on provided port, on all network interfaces.
+ */
+
+server.listen(port);
+server.on("error", onError);
+server.on("listening", onListening);
+
+const options = {
+  key: readFileSync(join(__dirname, "certificate/private.key")),
+  cert: readFileSync(join(__dirname, "certificate/certificate.pem")),
+};
+var secureServer = _createServer(options, app);
+
+secureServer.listen(app.get("secPort"), () => {
+  logging.info("Server listening on port " + app.get("secPort"));
+});
+secureServer.on("error", onError);
+secureServer.on("listening", onListening);
+
+/**
+ * Normalize a port into a number, string, or false.
+ */
+
+function normalizePort(val: string) {
+  var port = parseInt(val, 10);
+
+  if (isNaN(port)) {
+    // named pipe
+    return val;
+  }
+
+  if (port >= 0) {
+    // port number
+    return port;
+  }
+
+  return false;
+}
+
+/**
+ * Event listener for HTTP server "error" event.
+ */
+
+function onError(error: HttpError) {
+  if (error.syscall !== "listen") {
+    throw error;
+  }
+
+  var bind = typeof port === "string" ? "Pipe " + port : "Port " + port;
+
+  // handle specific listen errors with friendly messages
+  switch (error.code) {
+    case "EACCES":
+      logging.error(bind + " requires elevated privileges");
+      process.exit(1);
+      break;
+    case "EADDRINUSE":
+      logging.error(bind + " is already in use");
+      process.exit(1);
+      break;
+    default:
+      throw error;
+  }
+}
+
+/**
+ * Event listener for HTTP server "listening" event.
+ */
+
+function onListening() {
+  var addr = server.address();
+  var bind = typeof addr === "string" ? "pipe " + addr : "port " + addr?.port;
+  debug("Listening on " + bind);
+}
